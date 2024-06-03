@@ -1,0 +1,44 @@
+name: Deploy
+on:
+  # workflow_run:
+  #   workflows: ["Build"]
+  #   types: [completed]
+  #   branches:
+  #    - 'main'
+  workflow_dispatch:
+    inputs:
+      build-id:
+        description: Build workflow run id to pick artifacts for deploy.
+        required: true
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+env:
+  ARTIFACT: az-gov-viz
+  LOCATION: eastus2
+  ENVIRONMENT: prd
+  WORKLOAD: az-gov-viz
+  RG: rg-governance-visualizer-prd-eastus2-01
+  WEBAPP: app-fbitn-governance-visualizer-prd-eastus2-01
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux]
+    environment: prd
+    steps:
+      - name: 'Downloading artifact'
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build.yml
+          run_id: ${{inputs.build-id}}
+      - name: 'Az CLI login'
+        uses: azure/login@v1
+        with:
+            client-id: ${{ secrets.AZURE_CLIENT_ID }}
+            tenant-id: ${{ secrets.TENANT_ID }}
+            subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+      - name: Upload Latest Artifact to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.WEBAPP }}
+          package: ./az-gov-viz
